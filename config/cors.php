@@ -21,10 +21,12 @@ return [
         env('CORS_ALLOWED_ORIGINS'),
         'http://localhost:3000',
         'https://hotel-system-ten-roan.vercel.app',
+        'https://hotel-sys.loop-pr.com',
     ]),
 
     'allowed_origins_patterns' => [
         '/https:\/\/hotel-system-ten-roan\.vercel\.app/',
+        '/https:\/\/.*\.vercel\.app/',
     ],
 
     'allowed_headers' => ['*'],
