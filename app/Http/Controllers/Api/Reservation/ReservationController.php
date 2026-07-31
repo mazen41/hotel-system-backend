@@ -154,12 +154,22 @@ class ReservationController extends Controller
             $reservation->status = 'checked_in';
             $reservation->save();
 
-            // Auto-create folio on check-in
+            // Auto-create folio on check-in with room accommodation charge
             if (!$reservation->folios()->exists()) {
-                Folio::create([
+                $folio = Folio::create([
                     'reservation_id' => $reservation->id,
                     'guest_id' => $reservation->guest_id,
                     'status' => 'open',
+                    'created_by' => auth()->id(),
+                ]);
+
+                // Add room accommodation charge
+                Charge::create([
+                    'folio_id' => $folio->id,
+                    'reservation_id' => $reservation->id,
+                    'charge_type' => 'room',
+                    'description' => 'Room Charge - ' . ($reservation->room->room_number ?? 'Unassigned'),
+                    'amount' => $reservation->subtotal,
                     'created_by' => auth()->id(),
                 ]);
             }
@@ -339,12 +349,22 @@ class ReservationController extends Controller
             $reservation->status = 'checked_in';
             $reservation->save();
 
-            // Auto-create folio on check-in
+            // Auto-create folio on check-in with room accommodation charge
             if (!$reservation->folios()->exists()) {
-                Folio::create([
+                $folio = Folio::create([
                     'reservation_id' => $reservation->id,
                     'guest_id' => $reservation->guest_id,
                     'status' => 'open',
+                    'created_by' => auth()->id(),
+                ]);
+
+                // Add room accommodation charge
+                Charge::create([
+                    'folio_id' => $folio->id,
+                    'reservation_id' => $reservation->id,
+                    'charge_type' => 'room',
+                    'description' => 'Room Charge - ' . ($reservation->room->room_number ?? 'Unassigned'),
+                    'amount' => $reservation->subtotal,
                     'created_by' => auth()->id(),
                 ]);
             }
