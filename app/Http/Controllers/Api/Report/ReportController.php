@@ -74,13 +74,13 @@ class ReportController extends Controller
 
         // Revenue is based on actual completed payments minus refunds
         $revenueData = Payment::select(
-            DB::raw('DATE(payment_date) as date'),
+            DB::raw('DATE(created_at) as date'),
             DB::raw('SUM(CASE WHEN status = "completed" THEN amount ELSE 0 END) as completed_payments'),
             DB::raw('SUM(CASE WHEN status = "refunded" THEN amount ELSE 0 END) as refunded_payments'),
             DB::raw('SUM(CASE WHEN status = "completed" THEN amount ELSE 0 END) - SUM(CASE WHEN status = "refunded" THEN amount ELSE 0 END) as revenue')
         )
-            ->where('payment_date', '>=', $startDate)
-            ->where('payment_date', '<=', $endDate)
+            ->where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate . ' 23:59:59')
             ->whereIn('status', ['completed', 'refunded'])
             ->groupBy('date')
             ->orderBy('date')
@@ -157,8 +157,8 @@ class ReportController extends Controller
         $availableRoomNights = $totalRooms * $totalDays;
 
         // Get actual payments for the period (net revenue)
-        $totalRevenue = Payment::where('payment_date', '>=', $startDate)
-            ->where('payment_date', '<=', $endDate)
+        $totalRevenue = Payment::where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate . ' 23:59:59')
             ->where('status', 'completed')
             ->sum('amount');
 
@@ -312,24 +312,24 @@ class ReportController extends Controller
 
         // Total charges = value of all services provided
         $totalCharges = Charge::where('created_at', '>=', $startDate)
-            ->where('created_at', '<=', $endDate)
+            ->where('created_at', '<=', $endDate . ' 23:59:59')
             ->sum('amount');
 
         // Total payments = actual money received
-        $totalPayments = Payment::where('payment_date', '>=', $startDate)
-            ->where('payment_date', '<=', $endDate)
+        $totalPayments = Payment::where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate . ' 23:59:59')
             ->where('status', 'completed')
             ->sum('amount');
 
         // Refunds = money returned
-        $refundedPayments = Payment::where('payment_date', '>=', $startDate)
-            ->where('payment_date', '<=', $endDate)
+        $refundedPayments = Payment::where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate . ' 23:59:59')
             ->where('status', 'refunded')
             ->sum('amount');
 
         // Pending payments = money expected but not yet received
-        $pendingPayments = Payment::where('payment_date', '>=', $startDate)
-            ->where('payment_date', '<=', $endDate)
+        $pendingPayments = Payment::where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate . ' 23:59:59')
             ->where('status', 'pending')
             ->sum('amount');
 
