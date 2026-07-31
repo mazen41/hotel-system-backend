@@ -94,6 +94,7 @@ class AuthController extends Controller
             'email'      => $user->email,
             'role'       => $user->roles->first()?->name,
             'roles'      => $user->roles->map(fn($r) => ['id' => $r->id, 'name' => $r->name])->values(),
+            'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
             'created_at' => $user->created_at?->toIso8601String(),
         ];
     }
