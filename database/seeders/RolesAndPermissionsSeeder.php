@@ -33,6 +33,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'express check-in',
             'express check-out',
             'mark no-show',
+            'manage trips and services',
         ];
 
         foreach ($permissions as $permission) {
@@ -57,6 +58,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'express check-in',
             'express check-out',
             'mark no-show',
+            'manage trips and services',
         ]);
 
         $frontDesk = Role::firstOrCreate(['name' => 'Front Desk', 'guard_name' => 'web']);

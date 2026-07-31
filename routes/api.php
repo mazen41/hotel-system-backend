@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\Room\RoomAvailabilityController;
 use App\Http\Controllers\Api\Room\RoomMapController;
 use App\Http\Controllers\Api\RoomType\RoomTypeController;
 use App\Http\Controllers\Api\Search\SearchController;
+use App\Http\Controllers\Api\Service\ServiceController;
 use App\Http\Controllers\Api\Settings\HotelSettingsController;
 use App\Http\Controllers\Api\User\UserController;
 use App\Http\Controllers\Api\User\RoleController;
@@ -113,6 +114,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{reservation}/express-check-out', [ReservationController::class, 'expressCheckOut']);
         Route::post('/{reservation}/split',             [ReservationController::class, 'split']);
         Route::post('/{reservation}/add-to-group',      [ReservationController::class, 'addToGroup']);
+    });
+
+    // Trips & Services
+    Route::prefix('services')->middleware('permission:manage trips and services')->group(function () {
+        Route::get('/',          [ServiceController::class, 'index']);
+        Route::post('/',         [ServiceController::class, 'store']);
+        Route::get('/{service}',[ServiceController::class, 'show']);
+        Route::put('/{service}',[ServiceController::class, 'update']);
+        Route::delete('/{service}', [ServiceController::class, 'destroy']);
     });
 
     // Rate Plans

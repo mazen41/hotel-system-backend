@@ -115,6 +115,11 @@ class Reservation extends Model
         return $this->hasMany(Folio::class);
     }
 
+    public function services(): HasMany
+    {
+        return $this->hasMany(Service::class);
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->whereIn('status', self::ACTIVE_STATUSES);
