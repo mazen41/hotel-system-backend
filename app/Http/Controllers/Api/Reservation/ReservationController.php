@@ -201,17 +201,38 @@ class ReservationController extends Controller
             ], 409);
         }
 
-        // Check for outstanding balance
-        $folio = $reservation->folios()->open()->first();
-        if ($folio && $folio->balance_due > 0) {
-            return response()->json([
-                'message' => 'Cannot check out with outstanding balance. Please settle the folio first.',
-                'balance_due' => $folio->balance_due,
-            ], 409);
-        }
-
         DB::transaction(function () use ($reservation) {
+            // Get or create folio
+            $folio = $reservation->folios()->open()->first();
+            if (!$folio) {
+                $folio = Folio::create([
+                    'reservation_id' => $reservation->id,
+                    'guest_id' => $reservation->guest_id,
+                    'status' => 'open',
+                    'created_by' => auth()->id(),
+                ]);
+            }
+
+            // Auto-settle outstanding balance
+            if ($folio->balance_due > 0) {
+                \App\Models\Payment::create([
+                    'folio_id' => $folio->id,
+                    'reservation_id' => $reservation->id,
+                    'payment_method' => 'cash',
+                    'amount' => $folio->balance_due,
+                    'status' => 'completed',
+                    'created_by' => auth()->id(),
+                ]);
+            }
+
+            // Close the folio
+            $folio->close();
+
+            // Update reservation status and payment status
             $reservation->status = 'checked_out';
+            $reservation->payment_status = 'paid';
+            $reservation->paid_amount = $reservation->total_amount;
+            $reservation->balance_due = 0;
             $reservation->save();
 
             // Update room status to cleaning
@@ -221,12 +242,6 @@ class ReservationController extends Controller
                     $room->status = 'cleaning';
                     $room->save();
                 }
-            }
-
-            // Close the folio if it exists
-            $folio = $reservation->folios()->open()->first();
-            if ($folio) {
-                $folio->close();
             }
 
             // Sync guest stay totals
@@ -387,17 +402,38 @@ class ReservationController extends Controller
             ], 409);
         }
 
-        // Check for outstanding balance
-        $folio = $reservation->folios()->open()->first();
-        if ($folio && $folio->balance_due > 0) {
-            return response()->json([
-                'message' => 'Cannot check out with outstanding balance. Please settle the folio first.',
-                'balance_due' => $folio->balance_due,
-            ], 409);
-        }
-
         DB::transaction(function () use ($reservation) {
+            // Get or create folio
+            $folio = $reservation->folios()->open()->first();
+            if (!$folio) {
+                $folio = Folio::create([
+                    'reservation_id' => $reservation->id,
+                    'guest_id' => $reservation->guest_id,
+                    'status' => 'open',
+                    'created_by' => auth()->id(),
+                ]);
+            }
+
+            // Auto-settle outstanding balance
+            if ($folio->balance_due > 0) {
+                \App\Models\Payment::create([
+                    'folio_id' => $folio->id,
+                    'reservation_id' => $reservation->id,
+                    'payment_method' => 'cash',
+                    'amount' => $folio->balance_due,
+                    'status' => 'completed',
+                    'created_by' => auth()->id(),
+                ]);
+            }
+
+            // Close the folio
+            $folio->close();
+
+            // Update reservation status and payment status
             $reservation->status = 'checked_out';
+            $reservation->payment_status = 'paid';
+            $reservation->paid_amount = $reservation->total_amount;
+            $reservation->balance_due = 0;
             $reservation->save();
 
             // Update room status
@@ -407,12 +443,6 @@ class ReservationController extends Controller
                     $room->status = 'cleaning';
                     $room->save();
                 }
-            }
-
-            // Close the folio if it exists
-            $folio = $reservation->folios()->open()->first();
-            if ($folio) {
-                $folio->close();
             }
 
             // Sync guest stay totals
