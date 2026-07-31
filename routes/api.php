@@ -41,8 +41,10 @@ Route::prefix('auth')->group(function () {
 });
 
 // ─── POS Integration Routes (Protected with API key) ─────────────────
-Route::middleware('api.key')->prefix('guests')->group(function () {
-    Route::get('/search', [GuestController::class, 'search']);
+Route::middleware('api.key')->prefix('billing')->group(function () {
+    Route::post('/charges/post', [ChargeController::class, 'store']);
+    Route::get('/folios/lookup', [FolioController::class, 'lookupOpenForReservation']);
+    Route::post('/folios/open', [FolioController::class, 'store']);
 });
 
 Route::middleware('api.key')->prefix('billing')->group(function () {
@@ -87,6 +89,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Guests
     Route::prefix('guests')->group(function () {
+        Route::get('/search',  [GuestController::class, 'search']); // must be before /{guest}
         Route::get('/',        [GuestController::class, 'index']);
         Route::post('/',       [GuestController::class, 'store']);
         Route::get('/{guest}', [GuestController::class, 'show']);
