@@ -20,6 +20,8 @@ return [
         env('FRONTEND_URL', 'http://localhost:3000'),
         env('CORS_ALLOWED_ORIGINS'),
         'http://localhost:3000',
+        'http://localhost:3001',
+        'http://192.168.1.120:3001',
         'https://hotel-system-ten-roan.vercel.app',
         'https://hotel-sys.loop-pr.com',
     ]),
