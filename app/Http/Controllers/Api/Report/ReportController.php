@@ -72,23 +72,30 @@ class ReportController extends Controller
         $startDate = $validated['start_date'];
         $endDate   = $validated['end_date'];
 
+        // Revenue is based on actual completed payments minus refunds
         $revenueData = Payment::select(
             DB::raw('DATE(payment_date) as date'),
-            DB::raw('SUM(amount) as revenue')
+            DB::raw('SUM(CASE WHEN status = "completed" THEN amount ELSE 0 END) as completed_payments'),
+            DB::raw('SUM(CASE WHEN status = "refunded" THEN amount ELSE 0 END) as refunded_payments'),
+            DB::raw('SUM(CASE WHEN status = "completed" THEN amount ELSE 0 END) - SUM(CASE WHEN status = "refunded" THEN amount ELSE 0 END) as revenue')
         )
             ->where('payment_date', '>=', $startDate)
             ->where('payment_date', '<=', $endDate)
-            ->where('status', 'completed')
+            ->whereIn('status', ['completed', 'refunded'])
             ->groupBy('date')
             ->orderBy('date')
             ->get();
 
         $totalRevenue = $revenueData->sum('revenue');
+        $totalCompleted = $revenueData->sum('completed_payments');
+        $totalRefunded = $revenueData->sum('refunded_payments');
 
         return response()->json([
             'data'    => $revenueData,
             'summary' => [
                 'total_revenue'         => $totalRevenue,
+                'total_completed'       => $totalCompleted,
+                'total_refunded'       => $totalRefunded,
                 'average_daily_revenue' => $revenueData->count() > 0 ? $totalRevenue / $revenueData->count() : 0,
             ],
         ]);
@@ -106,12 +113,19 @@ class ReportController extends Controller
 
         $startDate    = $validated['start_date'];
         $endDate      = $validated['end_date'];
+
+        // Get reservations that were checked in during the period
         $reservations = Reservation::where('check_in_date', '>=', $startDate)
             ->where('check_in_date', '<=', $endDate)
-            ->whereIn('status', ['confirmed', 'checked_in', 'checked_out'])
+            ->whereIn('status', ['checked_in', 'checked_out'])
             ->get();
 
-        $totalRevenue   = $reservations->sum('total_amount');
+        // Get actual payments for these reservations (net revenue)
+        $reservationIds = $reservations->pluck('id');
+        $totalRevenue = Payment::whereIn('reservation_id', $reservationIds)
+            ->where('status', 'completed')
+            ->sum('amount');
+
         $totalRoomsSold = $reservations->count();
         $adr            = $totalRoomsSold > 0 ? $totalRevenue / $totalRoomsSold : 0;
 
@@ -142,13 +156,13 @@ class ReportController extends Controller
         $totalDays  = max(1, (strtotime($endDate) - strtotime($startDate)) / 86400 + 1);
         $availableRoomNights = $totalRooms * $totalDays;
 
-        $reservations = Reservation::where('check_in_date', '>=', $startDate)
-            ->where('check_in_date', '<=', $endDate)
-            ->whereIn('status', ['confirmed', 'checked_in', 'checked_out'])
-            ->get();
+        // Get actual payments for the period (net revenue)
+        $totalRevenue = Payment::where('payment_date', '>=', $startDate)
+            ->where('payment_date', '<=', $endDate)
+            ->where('status', 'completed')
+            ->sum('amount');
 
-        $totalRevenue = $reservations->sum('total_amount');
-        $revpar       = $availableRoomNights > 0 ? $totalRevenue / $availableRoomNights : 0;
+        $revpar = $availableRoomNights > 0 ? $totalRevenue / $availableRoomNights : 0;
 
         return response()->json([
             'data' => [
@@ -296,34 +310,41 @@ class ReportController extends Controller
         $startDate = $validated['start_date'];
         $endDate   = $validated['end_date'];
 
-        $totalRevenue = Payment::where('payment_date', '>=', $startDate)
-            ->where('payment_date', '<=', $endDate)
-            ->where('status', 'completed')
-            ->sum('amount');
-
+        // Total charges = value of all services provided
         $totalCharges = Charge::where('created_at', '>=', $startDate)
             ->where('created_at', '<=', $endDate)
             ->sum('amount');
 
-        $pendingPayments = Payment::where('payment_date', '>=', $startDate)
+        // Total payments = actual money received
+        $totalPayments = Payment::where('payment_date', '>=', $startDate)
             ->where('payment_date', '<=', $endDate)
-            ->where('status', 'pending')
+            ->where('status', 'completed')
             ->sum('amount');
 
+        // Refunds = money returned
         $refundedPayments = Payment::where('payment_date', '>=', $startDate)
             ->where('payment_date', '<=', $endDate)
             ->where('status', 'refunded')
             ->sum('amount');
 
+        // Pending payments = money expected but not yet received
+        $pendingPayments = Payment::where('payment_date', '>=', $startDate)
+            ->where('payment_date', '<=', $endDate)
+            ->where('status', 'pending')
+            ->sum('amount');
+
+        // Net income = charges minus refunds (actual value after returns)
+        $netIncome = $totalCharges - $refundedPayments;
+
         return response()->json([
             'data' => [
                 'start_date'        => $startDate,
                 'end_date'          => $endDate,
-                'total_revenue'     => $totalRevenue,
                 'total_charges'     => $totalCharges,
+                'total_payments'     => $totalPayments,
                 'pending_payments'  => $pendingPayments,
                 'refunded_payments' => $refundedPayments,
-                'net_revenue'       => $totalRevenue - $refundedPayments,
+                'net_income'        => $netIncome,
             ],
         ]);
     }
