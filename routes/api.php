@@ -264,6 +264,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/guests',           [ReportController::class, 'guests']);
         Route::get('/housekeeping',     [ReportController::class, 'housekeeping']);
         Route::get('/financial-summary',[ReportController::class, 'financialSummary']);
+        Route::get('/trips',            [ReportController::class, 'trips']);
+        Route::get('/services',         [ReportController::class, 'services']);
+        Route::get('/reservations',     [ReportController::class, 'reservations']);
+        Route::get('/payments',         [ReportController::class, 'payments']);
+        Route::get('/maintenance',      [ReportController::class, 'maintenance']);
     });
 
     // Notifications

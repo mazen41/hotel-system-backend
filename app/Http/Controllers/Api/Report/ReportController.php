@@ -9,6 +9,8 @@ use App\Models\HousekeepingTask;
 use App\Models\Payment;
 use App\Models\Reservation;
 use App\Models\Room;
+use App\Models\Service;
+use App\Models\MaintenanceRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -345,6 +347,165 @@ class ReportController extends Controller
                 'pending_payments'  => $pendingPayments,
                 'refunded_payments' => $refundedPayments,
                 'net_income'        => $netIncome,
+            ],
+        ]);
+    }
+
+    /**
+     * GET /api/reports/trips
+     */
+    public function trips(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'start_date' => 'required|date',
+            'end_date'   => 'required|date|after_or_equal:start_date',
+        ]);
+
+        $startDate = $validated['start_date'];
+        $endDate   = $validated['end_date'];
+
+        $trips = Service::where('type', 'trip')
+            ->where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate . ' 23:59:59')
+            ->with(['guest', 'reservation', 'createdBy'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $totalFees = $trips->sum('fees');
+
+        return response()->json([
+            'data'    => $trips,
+            'summary' => [
+                'total_trips' => $trips->count(),
+                'total_fees'  => $totalFees,
+                'average_fee' => $trips->count() > 0 ? round($totalFees / $trips->count(), 2) : 0,
+            ],
+        ]);
+    }
+
+    /**
+     * GET /api/reports/services
+     */
+    public function services(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'start_date' => 'required|date',
+            'end_date'   => 'required|date|after_or_equal:start_date',
+        ]);
+
+        $startDate = $validated['start_date'];
+        $endDate   = $validated['end_date'];
+
+        $services = Service::where('type', 'service')
+            ->where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate . ' 23:59:59')
+            ->with(['guest', 'reservation', 'createdBy'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $totalFees = $services->sum('fees');
+
+        return response()->json([
+            'data'    => $services,
+            'summary' => [
+                'total_services' => $services->count(),
+                'total_fees'     => $totalFees,
+                'average_fee'    => $services->count() > 0 ? round($totalFees / $services->count(), 2) : 0,
+            ],
+        ]);
+    }
+
+    /**
+     * GET /api/reports/reservations
+     */
+    public function reservations(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'start_date' => 'required|date',
+            'end_date'   => 'required|date|after_or_equal:start_date',
+        ]);
+
+        $startDate = $validated['start_date'];
+        $endDate   = $validated['end_date'];
+
+        $reservations = Reservation::where('check_in_date', '>=', $startDate)
+            ->where('check_in_date', '<=', $endDate)
+            ->with(['guest', 'room.roomType'])
+            ->orderBy('check_in_date', 'desc')
+            ->get();
+
+        return response()->json([
+            'data'    => $reservations,
+            'summary' => [
+                'total_reservations' => $reservations->count(),
+                'total_amount'       => $reservations->sum('total_amount'),
+                'total_paid'         => $reservations->sum('paid_amount'),
+                'total_balance'      => $reservations->sum('balance_due'),
+                'average_nights'     => $reservations->count() > 0 ? round($reservations->avg('nights'), 1) : 0,
+            ],
+        ]);
+    }
+
+    /**
+     * GET /api/reports/payments
+     */
+    public function payments(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'start_date' => 'required|date',
+            'end_date'   => 'required|date|after_or_equal:start_date',
+        ]);
+
+        $startDate = $validated['start_date'];
+        $endDate   = $validated['end_date'];
+
+        $payments = Payment::where('payment_date', '>=', $startDate)
+            ->where('payment_date', '<=', $endDate . ' 23:59:59')
+            ->with(['reservation.guest', 'receivedBy'])
+            ->orderBy('payment_date', 'desc')
+            ->get();
+
+        $completed = $payments->where('status', 'completed')->sum('amount');
+        $refunded = $payments->where('status', 'refunded')->sum('amount');
+
+        return response()->json([
+            'data'    => $payments,
+            'summary' => [
+                'total_transactions' => $payments->count(),
+                'total_payments'     => $completed,
+                'refunded_payments'  => $refunded,
+                'net_income'         => $completed - $refunded,
+            ],
+        ]);
+    }
+
+    /**
+     * GET /api/reports/maintenance
+     */
+    public function maintenance(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'start_date' => 'required|date',
+            'end_date'   => 'required|date|after_or_equal:start_date',
+        ]);
+
+        $startDate = $validated['start_date'];
+        $endDate   = $validated['end_date'];
+
+        $requests = MaintenanceRequest::where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate . ' 23:59:59')
+            ->with(['room', 'assignedTo'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'data'    => $requests,
+            'summary' => [
+                'total_requests' => $requests->count(),
+                'completed'      => $requests->where('status', 'completed')->count(),
+                'pending'        => $requests->where('status', 'pending')->count(),
+                'in_progress'    => $requests->where('status', 'in_progress')->count(),
+                'cancelled'      => $requests->where('status', 'cancelled')->count(),
             ],
         ]);
     }
