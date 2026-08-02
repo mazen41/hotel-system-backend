@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
 class Service extends Model
 {
@@ -23,6 +24,18 @@ class Service extends Model
     protected $casts = [
         'fees' => 'decimal:2',
     ];
+
+    protected $appends = [
+        'invoice_image_url',
+    ];
+
+    public function getInvoiceImageUrlAttribute()
+    {
+        if ($this->invoice_image) {
+            return Storage::url($this->invoice_image);
+        }
+        return null;
+    }
 
     public function guest()
     {
